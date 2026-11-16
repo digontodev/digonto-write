@@ -31,3 +31,7 @@ To run from source: `pip install --require-hashes -r requirements.txt` then `pyt
 ## Licence
 
 GNU Affero General Public License v3.0 or later - see [LICENSE](LICENSE). Copyright (C) Digonto.
+
+## Contributing
+
+Bug reports, ideas and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md); every commit needs a DCO sign-off (`git commit -s`).
