@@ -94,5 +94,6 @@ jobs:
             Offline installers - no account, no internet needed.
             - Windows 10/11: the `.exe` setup
             - macOS 13 or newer (Intel and Apple silicon): the `.dmg`
+              First start: System Settings > Privacy & Security > Open Anyway (not signed by Apple yet).
             - Ubuntu 24.04+ / Debian 13+: the `.deb`
           files: dist/*

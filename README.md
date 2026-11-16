@@ -17,7 +17,7 @@ Get the newest version from the **[Releases page](https://github.com/digontodev/
 | Ubuntu 24.04+ / Debian 13+ (64-bit) | `digonto-write_<version>_amd64.deb` |
 
 - **Windows:** run the setup file. Windows may show "Windows protected your PC": click *More info* > *Run anyway* (the program is not signed yet).
-- **macOS:** open the .dmg and drag the program into Applications. The first time, right-click it and choose *Open* (the program is not from the App Store).
+- **macOS:** open the .dmg and drag the program into Applications, then open it. The first time, macOS says it cannot verify the program (it is not signed with an Apple developer account yet): open **System Settings > Privacy & Security**, scroll down and click **Open Anyway**, then open the program again. This is needed only once. On Macs with an M chip, click *Install* if macOS asks to install Rosetta.
 - **Ubuntu / Debian:** `sudo apt install ./digonto-write_<version>_amd64.deb`
 
 ## Build it yourself

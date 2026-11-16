@@ -290,8 +290,11 @@ def build_dmg(apps, slugs, pkg, frozen, outdir):
     shutil.copytree(frozen, os.path.join(stage_dir, os.path.basename(frozen)), symlinks=True)
     os.symlink("/Applications", os.path.join(stage_dir, "Applications"))
     with open(os.path.join(stage_dir, "READ ME FIRST.txt"), "w") as f:
-        f.write(f"Drag {main['name']} into Applications.\n\nThe first time: right-click the program in Applications and "
-                "choose Open, then Open again.\nmacOS asks this once because the program is not from the App Store.\n")
+        f.write(f"Drag {main['name']} into Applications, then open it.\n\n"
+                "The first time, macOS says it cannot verify the program (it is not signed by Apple yet):\n"
+                "open System Settings > Privacy & Security, scroll down and click Open Anyway,\n"
+                "then open the program again. This is needed only once.\n\n"
+                "On Macs with an M chip, click Install if macOS asks to install Rosetta.\n")
     os.makedirs(outdir, exist_ok=True)
     arch = "arm64" if platform.machine() == "arm64" else "x86_64"
     out = os.path.join(outdir, f"{main['name'].replace(' ', '-')}-{main['version']}-macOS-{arch}.dmg")
