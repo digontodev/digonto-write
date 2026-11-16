@@ -1,6 +1,6 @@
 # Builds the standalone installers of this program on GitHub's own computers and puts them on the Releases page.
 #   Linux  .deb  (Ubuntu / Debian, 64-bit)
-#   macOS  .dmg  (Apple silicon: M1 and newer)
+#   macOS  .dmg  (Apple silicon and Intel)
 #   Windows .exe (installer, 64-bit)
 # Start it: push a tag like v1.2.3  (git tag v1.2.3 && git push --tags)  or press "Run workflow" on the Actions page.
 name: Release
@@ -22,6 +22,7 @@ jobs:
           - os: ubuntu-24.04      # the Qt libraries need Ubuntu 24.04 / Debian 13 or newer
           - os: windows-latest
           - os: macos-14          # Apple silicon (M1 and newer)
+          - os: macos-15-intel    # Intel Macs
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +35,9 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --require-hashes -r src/digonto-write/requirements.txt
+          REQ=src/digonto-write/requirements.txt
+          if [ "$RUNNER_OS" = "macOS" ] && [ "$RUNNER_ARCH" = "X64" ] && [ -f src/digonto-write/requirements-macos-intel.txt ]; then REQ=src/digonto-write/requirements-macos-intel.txt; fi
+          python -m pip install --require-hashes -r "$REQ"
           python -m pip install pyinstaller==6.22.3
       - name: Inno Setup (Windows installer maker)
         if: runner.os == 'Windows'
