@@ -50,6 +50,18 @@ jobs:
       - name: Build
         shell: bash
         run: python src/digonto-write/packaging/build.py --root src --apps digonto-write --out dist
+      - name: Fixed-name copy (stable download link for digonto.dev)
+        shell: bash
+        run: |
+          N="${{ github.event.repository.name }}"
+          for f in dist/*; do
+            case "$f" in
+              *.exe) cp "$f" "dist/$N-windows.exe" ;;
+              *.dmg) cp "$f" "dist/$N-macos.dmg" ;;
+              *.deb) cp "$f" "dist/$N-linux.deb" ;;
+            esac
+          done
+          ls -la dist
       - uses: actions/upload-artifact@v5
         with:
           name: digonto-write-${{ matrix.os }}
