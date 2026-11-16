@@ -2,13 +2,18 @@
 #   Linux  .deb  (Ubuntu / Debian, 64-bit)
 #   macOS  .dmg  (Intel build; also runs on Apple silicon)
 #   Windows .exe (installer, 64-bit)
-# Start it: push a tag like v1.2.3  (git tag v1.2.3 && git push --tags)  or press "Run workflow" on the Actions page.
+# Start it: on the Actions page press \"Run workflow\" and tick \"Publish\" (or push a tag like v1.2.3).
 name: Release
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Put the installers on the Releases page (version from digonto-app.json)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -49,8 +54,33 @@ jobs:
         with:
           name: digonto-write-${{ matrix.os }}
           path: dist/*
-      - name: Put the installer on the Releases page
-        if: startsWith(github.ref, 'refs/tags/')
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/') || inputs.publish
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Version
+        id: v
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else echo "tag=v$(python3 -c 'import json;print(json.load(open("digonto-app.json"))["version"])')" >> "$GITHUB_OUTPUT"; fi
+          echo "name=$(python3 -c 'import json;print(json.load(open("digonto-app.json"))["name"])')" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Put the installers on the Releases page
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.v.outputs.tag }}
+          name: ${{ steps.v.outputs.name }} ${{ steps.v.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          body: |
+            Offline installers - no account, no internet needed.
+            - Windows 10/11: the `.exe` setup
+            - macOS 13 or newer (Intel and Apple silicon): the `.dmg`
+            - Ubuntu 24.04+ / Debian 13+: the `.deb`
           files: dist/*
