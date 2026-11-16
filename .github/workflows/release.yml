@@ -1,0 +1,54 @@
+# Builds the standalone installers of this program on GitHub's own computers and puts them on the Releases page.
+#   Linux  .deb  (Ubuntu / Debian, 64-bit)
+#   macOS  .dmg  (Apple silicon: M1 and newer)
+#   Windows .exe (installer, 64-bit)
+# Start it: push a tag like v1.2.3  (git tag v1.2.3 && git push --tags)  or press "Run workflow" on the Actions page.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04      # the Qt libraries need Ubuntu 24.04 / Debian 13 or newer
+          - os: windows-latest
+          - os: macos-14          # Apple silicon (M1 and newer)
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src/digonto-write
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Libraries (exact versions, SHA-256 checked)
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r src/digonto-write/requirements.txt
+          python -m pip install pyinstaller==6.22.3
+      - name: Inno Setup (Windows installer maker)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: if (-not (Get-Command iscc -ErrorAction SilentlyContinue) -and -not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Build
+        shell: bash
+        run: python src/digonto-write/packaging/build.py --root src --apps digonto-write --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digonto-write-${{ matrix.os }}
+          path: dist/*
+      - name: Put the installer on the Releases page
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

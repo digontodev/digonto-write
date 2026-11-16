@@ -1,0 +1,16 @@
+# Digonto Write - only these two libraries. Exact versions + SHA-256 fingerprints; pip refuses any other file.
+# pip install --require-hashes --only-binary=:all: -r requirements.txt
+
+PySide6-Essentials==6.10.3 \
+    --hash=sha256:8d7e2b826ac7f043dbfff487552c220517003927f6cfa14ab6a4824e8623a686 \
+    --hash=sha256:5fb32b48010f513335a2166ac3df279c5996fb96402fd91a4875fc717fe55de0 \
+    --hash=sha256:6f1b226930828caef622aef0f1fe718db54849b29102617bc978c0120368ed6b \
+    --hash=sha256:051a70e2df79cf1c012a208ad82a98e8de23ca7fe3b0f3344d07152d15705b59 \
+    --hash=sha256:f9124e2f4a4cedba83bea11f712b152093ff91be3512e17c64ffc4f43f02bddd
+
+shiboken6==6.10.3 \
+    --hash=sha256:3827489c2b3059541a71678916716f2867eeeac8724adb6f82de6e69d1b5cfe8 \
+    --hash=sha256:99e8ac3319a2c93a4a8f8bb4512d71a9d43bc9f226f094a80a728d6dcc3e4826 \
+    --hash=sha256:49d08bff0c36edb839aca0a8059fd771c81b4a0770f38f374542aae03f860c07 \
+    --hash=sha256:38261c88e87a1c32d1302b642b755470d2369c78af3c7d7d9e95d631f79b556c \
+    --hash=sha256:7f196245985bcf85d5c6d1cfd870f139484d5259c16e8a42deddacca0671bfbe

@@ -1,0 +1,40 @@
+{
+  "slug": "digonto-write",
+  "name": "Digonto Write",
+  "version": "1.4.6",
+  "comment": "Word processor: DOCX, ODT, HTML, Markdown, PDF",
+  "entry": "digonto_write.py",
+  "files": [
+    "digonto_write.py",
+    "digonto_ui.py",
+    "digonto_office.py",
+    "writekit",
+    "assets",
+    "requirements.txt",
+    "README.txt"
+  ],
+  "requirements": "requirements.txt",
+  "check": "import PySide6.QtWidgets; import writekit.docx, writekit.common",
+  "needs_tk": false,
+  "apt": [
+    "libxcb-cursor0"
+  ],
+  "macos_min": 11,
+  "categories": "Office;WordProcessor;",
+  "keywords": "word;docx;document;writer;",
+  "wm_class": "digonto-write",
+  "mime": [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/x-digonto-document"
+  ],
+  "legacy": {
+    "linux": [],
+    "darwin": [],
+    "windows": []
+  },
+  "extensions": [
+    ".ddoc",
+    ".docx",
+    ".odt"
+  ]
+}
