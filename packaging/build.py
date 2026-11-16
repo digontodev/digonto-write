@@ -17,6 +17,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SYS = platform.system()
@@ -296,7 +297,12 @@ def build_dmg(apps, slugs, pkg, frozen, outdir):
     out = os.path.join(outdir, f"{main['name'].replace(' ', '-')}-{main['version']}-macOS-{arch}.dmg")
     if os.path.exists(out):
         os.remove(out)
-    run(["hdiutil", "create", "-volname", main["name"], "-srcfolder", stage_dir, "-ov", "-format", "UDZO", out])
+    for attempt in range(5):                      # hdiutil often fails with 'Resource busy' on build machines
+        try:
+            run(["hdiutil", "create", "-volname", main["name"], "-srcfolder", stage_dir, "-ov", "-format", "UDZO", out]); break
+        except subprocess.CalledProcessError:
+            if attempt == 4: raise
+            time.sleep(10 * (attempt + 1))
     return out
 
 
