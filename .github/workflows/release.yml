@@ -21,7 +21,7 @@ jobs:
         include:
           - os: ubuntu-24.04      # the Qt libraries need Ubuntu 24.04 / Debian 13 or newer
           - os: windows-latest
-          - os: macos-14          # Apple silicon (M1 and newer)
+          - os: macos-15          # Apple silicon (M1 and newer)
           - os: macos-15-intel    # Intel Macs
     runs-on: ${{ matrix.os }}
     steps:

@@ -317,7 +317,8 @@ def build_exe(apps, slugs, pkg, frozen, outdir):
         icon = f'; IconFilename: "{{app}}\\_internal\\apps\\{s}\\assets\\{s}.ico"' if icon_file(a, "ico") else ""
         lines.append(f'Name: "{{group}}\\{a["name"]}"; Filename: "{{app}}\\{exe}"{args}{icon}')
         lines.append(f'Name: "{{autodesktop}}\\{a["name"]}"; Filename: "{{app}}\\{exe}"{args}{icon}; Tasks: desktopicon')
-        cmdline = (f'"{{app}}\\{exe}" ' + ("" if s == pkg else f"--app {s} ") + '""%1""')
+        inner = f'"{{app}}\\{exe}" ' + ("" if s == pkg else f"--app {s} ") + '"%1"'
+        cmdline = inner.replace('"', '""')                 # Inno Setup: quotes inside a value are doubled
         for e in a.get("extensions", []):
             prog = f"Digonto.{s}{e}"
             reg += [f'Root: HKCU; Subkey: "Software\\Classes\\{e}"; ValueType: string; ValueName: ""; ValueData: "{prog}"; Flags: uninsdeletevalue',
