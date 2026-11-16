@@ -8,6 +8,7 @@ The build Python must already have the programs' requirements installed (see --p
 """
 import argparse
 import ast
+import glob
 import json
 import os
 import platform
@@ -61,6 +62,27 @@ def stage(apps, slugs, dst):
                 raise SystemExit(f"{s}: missing file {item}")
 
 
+
+def native_libs(staged):
+    """dtfrip/sublimation ship a small C library for every system. Keep only the one for this computer;
+    on macOS compile it fresh with room in its header, because PyInstaller must rewrite its install name."""
+    import platform
+    sysn = {"Windows": "windows", "Darwin": "macos"}.get(SYS, "linux")
+    arch = "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x86_64"
+    ext = {"windows": ".dll", "macos": ".dylib"}.get(sysn, ".so")
+    keep = f"libdtfcore-{sysn}-{arch}{ext}"
+    for lib in glob.glob(os.path.join(staged, "*", "*", "lib")):
+        if not os.path.isfile(os.path.join(os.path.dirname(lib), "csrc", "dtfcore.c")):
+            continue
+        for f in os.listdir(lib):
+            if f.startswith("libdtfcore-") and f != keep:
+                os.remove(os.path.join(lib, f))
+        if sysn == "macos":
+            src = os.path.join(os.path.dirname(lib), "csrc", "dtfcore.c")
+            run(["cc", "-O3", "-shared", "-fPIC", "-arch", arch, "-mmacosx-version-min=11.0",
+                 "-Wl,-headerpad_max_install_names", "-install_name", "@rpath/" + keep,
+                 "-o", os.path.join(lib, keep), src])
+
 def scan_imports(staged):
     """every module the programs import, minus their own modules -> PyInstaller must collect these"""
     local, found = set(), set()
@@ -110,6 +132,7 @@ def freeze(apps, slugs, pkg, work):
     main = apps[pkg]
     staged = os.path.join(work, "apps")
     stage(apps, slugs, staged)
+    native_libs(staged)
     with open(os.path.join(work, "default-app.txt"), "w") as f:
         f.write(pkg)
     write_deps(scan_imports(staged), os.path.join(work, "_digonto_deps.py"))
