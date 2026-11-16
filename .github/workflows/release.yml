@@ -1,6 +1,6 @@
 # Builds the standalone installers of this program on GitHub's own computers and puts them on the Releases page.
 #   Linux  .deb  (Ubuntu / Debian, 64-bit)
-#   macOS  .dmg  (Apple silicon and Intel)
+#   macOS  .dmg  (Intel build; also runs on Apple silicon)
 #   Windows .exe (installer, 64-bit)
 # Start it: push a tag like v1.2.3  (git tag v1.2.3 && git push --tags)  or press "Run workflow" on the Actions page.
 name: Release
@@ -21,14 +21,13 @@ jobs:
         include:
           - os: ubuntu-24.04      # the Qt libraries need Ubuntu 24.04 / Debian 13 or newer
           - os: windows-latest
-          - os: macos-15          # Apple silicon (M1 and newer)
-          - os: macos-15-intel    # Intel Macs
+          - os: macos-15-intel    # all Macs: runs natively on Intel, through Rosetta 2 on Apple silicon
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: src/digonto-write
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Libraries (exact versions, SHA-256 checked)
@@ -46,7 +45,7 @@ jobs:
       - name: Build
         shell: bash
         run: python src/digonto-write/packaging/build.py --root src --apps digonto-write --out dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: digonto-write-${{ matrix.os }}
           path: dist/*
