@@ -1067,6 +1067,29 @@ class WriteWindow(QMainWindow):
         self.spell_timer.start(300)
         ui.add_recent(SLUG, path)
         self.statusBar().showMessage("Opened " + os.path.basename(path), 4000)
+        fams = self.fonts_used(doc)
+        if any(not ui.font_installed(x) for x in fams):
+            QTimer.singleShot(150, lambda: ui.note_missing_fonts(self, fams))
+
+    @staticmethod
+    def fonts_used(doc):
+        """every font family the document's text asks for"""
+        fams = set()
+        b = doc.begin()
+        while b.isValid():
+            it = b.begin()
+            while not it.atEnd():
+                fr = it.fragment()
+                if fr.isValid():
+                    cf = fr.charFormat()
+                    fl = cf.fontFamilies() if hasattr(cf, "fontFamilies") else None
+                    if fl:
+                        fams.add(str(fl[0]))
+                    elif cf.fontFamily():
+                        fams.add(cf.fontFamily())
+                it += 1
+            b = b.next()
+        return fams
 
     def file_save(self):
         if not self.path or os.path.splitext(self.path)[1].lower() not in (".docx", ".ddoc", ".html", ".md", ".txt", ".odt"):

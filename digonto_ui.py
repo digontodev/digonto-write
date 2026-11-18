@@ -120,7 +120,7 @@ def about_dialog(parent, title, text, icon=None):
     dlg.exec()
 
 
-def _styled_question(parent, title, text, buttons=None, default=None):
+def _styled_question(parent, title, text, buttons=None, default=None, labels=None):
     """a Digonto-styled replacement for QMessageBox.question (the native one was cut off on macOS)"""
     from PySide6.QtWidgets import QDialog, QMessageBox as MB
     SB = MB.StandardButton
@@ -150,7 +150,7 @@ def _styled_question(parent, title, text, buttons=None, default=None):
     for b, label in [x for x in names if x[0] in (SB.Discard, SB.No, SB.Cancel)] + [x for x in names if x[0] in (SB.Save, SB.Yes, SB.Ok)]:
         if not (buttons & b):
             continue
-        btn = QPushButton(label)
+        btn = QPushButton((labels or {}).get(b, label))
         btn.setMinimumWidth(96)
         btn.setCursor(Qt.PointingHandCursor)
         primary = (default == b) if default not in (None, SB.NoButton) else b in (SB.Save, SB.Yes, SB.Ok)
@@ -1224,3 +1224,49 @@ def _keep_help(header, title, on_about):
         elif n < 60:
             QTimer.singleShot(100, lambda: attempt(n + 1))
     QTimer.singleShot(0, attempt)
+
+
+# ---- fonts a file uses that are not installed (Images, Vector, Write, Sheets)
+def font_installed(family):
+    """is this font family on this computer? (spaces, case and dashes do not matter)"""
+    if not family:
+        return True
+    from PySide6.QtGui import QFontDatabase
+    key = lambda t: "".join(c for c in t.lower() if c.isalnum())   # noqa: E731
+    want = key(family)
+    generic = {"sansserif", "serif", "monospace", "sans", "default", "systemui", "cursive", "fantasy"}
+    if want in generic:
+        return True
+    return any(key(f) == want for f in QFontDatabase.families())
+
+
+def missing_fonts(families):
+    return sorted({f for f in families if f and not font_installed(f)}, key=str.lower)
+
+
+def note_missing_fonts(parent, families):
+    """one note after opening a file: every font it uses that is not installed"""
+    miss = missing_fonts(families)
+    if not miss:
+        return
+    from PySide6.QtWidgets import QMessageBox as _MB
+    names = "\n".join("•  " + f for f in miss[:12]) + ("\n•  …" if len(miss) > 12 else "")
+    one = len(miss) == 1
+    _styled_question(parent, "Fonts not installed",
+                     f"This file uses {'a font' if one else f'{len(miss)} fonts'} that {'is' if one else 'are'} "
+                     f"not installed on this computer:\n\n{names}\n\nIt looks right as long as you don't edit "
+                     "that text. Install the font first and open the file again, or the text will use the default "
+                     "font when you edit it.", _MB.StandardButton.Ok)
+
+
+def warn_missing_font(parent, family):
+    """before editing a text whose font is missing: True = go on (with the default font), False = stop"""
+    if font_installed(family):
+        return True
+    from PySide6.QtWidgets import QMessageBox as _MB
+    SB = _MB.StandardButton
+    r = _styled_question(parent, "Font not installed",
+                         f"\"{family}\" is not installed on this computer.\n\nInstall the font first and open the file "
+                         "again, or continue and this text will be replaced by the default font.",
+                         SB.Ok | SB.Cancel, SB.Cancel, labels={SB.Ok: "Use default font"})
+    return r == SB.Ok
