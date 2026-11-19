@@ -546,6 +546,16 @@ def file_menu(window, extra=(), before_exit=()):
     return fm
 
 
+
+_HOLD = [0]
+
+
+def hold_alive(on):
+    """call hold_alive(True) before hiding every window on purpose (a screen capture) and hold_alive(False) after:
+    meanwhile the 'no window for 3 seconds = end the program' safety net waits"""
+    _HOLD[0] = max(0, _HOLD[0] + (1 if on else -1))
+
+
 def force_exit_soon(ms=300):
     """call from closeEvent: leave normally, and if anything (a thread) keeps the program alive, end it"""
     QApplication.instance().quit()
@@ -611,6 +621,9 @@ def setup_app(app, name, slug, icon, theme=False):
     state = {"seen": False, "gone": 0}
 
     def _watch():                     # safety net (macOS): no visible window for 3 seconds = the program is over, end the process
+        if _HOLD[0] > 0:              # the program hid its window on purpose (a screen capture): not over
+            state["gone"] = 0
+            return
         if any(w.isVisible() for w in app.topLevelWidgets()):
             state["seen"], state["gone"] = True, 0
         elif state["seen"]:
@@ -1270,3 +1283,301 @@ def warn_missing_font(parent, family):
                          "again, or continue and this text will be replaced by the default font.",
                          SB.Ok | SB.Cancel, SB.Cancel, labels={SB.Ok: "Use default font"})
     return r == SB.Ok
+
+# ================================================================================================================
+# The common Digonto window parts: line icons, the left icon bar ("rail") and the start screen.
+# Every program uses the same order: New, Open, Save, Export, Print - then its own icons - Settings at the bottom.
+# ================================================================================================================
+INK, SOFT, LINE, PINK, AMBER = "#2A1241", "#6B5F86", "#E7E1F0", "#FF6F8E", "#FFB05A"
+ICON_INK = "#5A2A86"
+
+
+def line_icon(kind, size=22, color=INK):
+    """simple line icons drawn in code (sharp on every screen, no files to ship)"""
+    import math
+    from PySide6.QtCore import QPointF, QRectF
+    from PySide6.QtGui import QFont, QPainter, QPainterPath, QPen
+    pm = QPixmap(size * 2, size * 2)
+    pm.fill(Qt.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.Antialiasing)
+    p.scale(2 * size / 24, 2 * size / 24)
+    p.setPen(QPen(QColor(color), 1.8, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+    p.setBrush(Qt.NoBrush)
+
+    def L(x0, y0, x1, y1):
+        p.drawLine(QPointF(x0, y0), QPointF(x1, y1))
+
+    def R(x, y, w, h, r=2):
+        p.drawRoundedRect(QRectF(x, y, w, h), r, r)
+
+    def poly(*pts, close=True):
+        path = QPainterPath()
+        path.moveTo(*pts[0])
+        for q in pts[1:]:
+            path.lineTo(*q)
+        if close:
+            path.closeSubpath()
+        p.drawPath(path)
+
+    def txt(rect, s, pt=8):
+        p.setFont(QFont("Sans", pt, QFont.Bold))
+        p.drawText(QRectF(*rect), Qt.AlignCenter, s)
+
+    if kind == "open":
+        poly((3, 7), (9, 7), (11, 9), (21, 9), (21, 19), (3, 19))
+    elif kind == "new":
+        poly((6, 3), (14, 3), (19, 8), (19, 21), (6, 21)); L(12.5, 10, 12.5, 17); L(9, 13.5, 16, 13.5)
+    elif kind == "file":
+        poly((6, 3), (14, 3), (19, 8), (19, 21), (6, 21)); poly((14, 3), (14, 8), (19, 8), close=False)
+    elif kind == "folder":
+        poly((3, 6), (9, 6), (11, 8), (21, 8), (21, 19), (3, 19)); L(3, 11, 21, 11)
+    elif kind == "save":
+        R(4, 4, 16, 16); R(8, 4, 8, 5, 1); R(7.5, 13, 9, 7, 1)
+    elif kind == "export":
+        L(12, 15, 12, 4); L(8, 8, 12, 4); L(16, 8, 12, 4); poly((7, 11), (4, 11), (4, 21), (20, 21), (20, 11), (17, 11), close=False)
+    elif kind == "print":
+        R(7, 3, 10, 6, 1); R(3, 9, 18, 8); R(7, 14, 10, 7, 1)
+    elif kind == "pen":
+        poly((15, 4), (20, 9), (9, 20), (4, 20), (4, 15)); L(13, 6, 18, 11)
+    elif kind == "pages":
+        R(4, 3, 10, 13); R(10, 8, 10, 13)
+    elif kind == "merge":
+        R(3, 4, 7, 9); R(14, 4, 7, 9); L(6.5, 13, 12, 19); L(17.5, 13, 12, 19); L(12, 19, 12, 22)
+    elif kind == "split":
+        R(8, 3, 8, 8); L(12, 11, 12, 14); L(12, 14, 5, 19); L(12, 14, 19, 19); R(2, 18, 6, 4, 1); R(16, 18, 6, 4, 1)
+    elif kind == "rotate":
+        p.drawArc(QRectF(4, 4, 16, 16), 30 * 16, 290 * 16); L(19, 3, 19.5, 8); L(19.5, 8, 14.5, 8)
+    elif kind == "organise":
+        for x, y in ((3, 3), (13, 3), (3, 13), (13, 13)):
+            R(x, y, 8, 8, 1.5)
+    elif kind == "remove":
+        R(5, 3, 14, 18); L(9, 9, 15, 15); L(15, 9, 9, 15)
+    elif kind == "extract":
+        R(3, 3, 11, 14); L(13, 16, 21, 16); L(18, 13, 21, 16); L(18, 19, 21, 16)
+    elif kind == "numbers":
+        R(5, 3, 14, 18); txt((5, 11, 14, 9), "12", 7)
+    elif kind == "crop":
+        L(6, 2, 6, 18); L(6, 18, 22, 18); L(2, 6, 18, 6); L(18, 6, 18, 22)
+    elif kind == "img2pdf":
+        R(3, 5, 18, 14); p.drawEllipse(QPointF(8, 10), 1.6, 1.6); L(3, 17, 10, 12); L(10, 12, 21, 18)
+    elif kind == "word":
+        R(5, 3, 14, 18); txt((5, 7, 14, 12), "W")
+    elif kind == "textfile":
+        R(5, 3, 14, 18); L(8, 8, 16, 8); L(8, 12, 16, 12); L(8, 16, 13, 16)
+    elif kind == "text":
+        L(5, 5, 19, 5); L(12, 5, 12, 20); L(9, 20, 15, 20)
+    elif kind == "sign":
+        path = QPainterPath(); path.moveTo(3, 15)
+        for x in range(3, 22):
+            path.lineTo(x, 15 - 4 * math.sin(x / 2.0))
+        p.drawPath(path); L(3, 21, 21, 21)
+    elif kind == "watermark":
+        path = QPainterPath(); path.moveTo(12, 3); path.cubicTo(6, 11, 5, 14, 5, 15.5)
+        path.cubicTo(5, 23, 19, 23, 19, 15.5); path.cubicTo(19, 14, 18, 11, 12, 3); p.drawPath(path)
+    elif kind == "redact":
+        R(5, 3, 14, 18); p.setBrush(QColor(color)); R(8, 9, 8, 3, 1); R(8, 14, 6, 3, 1)
+    elif kind == "ocr":
+        for a in ((3, 7, 3, 3), (3, 3, 7, 3), (17, 3, 21, 3), (21, 3, 21, 7), (3, 17, 3, 21), (3, 21, 7, 21),
+                  (17, 21, 21, 21), (21, 21, 21, 17)):
+            L(*a)
+        txt((3, 6, 18, 12), "Aa")
+    elif kind == "clean":
+        L(14, 3, 9, 13); poly((5, 13), (13, 13), (15, 21), (3, 21)); L(18, 6, 21, 6); L(19.5, 4.5, 19.5, 7.5)
+    elif kind == "blank":
+        R(5, 3, 14, 18); p.setPen(QPen(QColor(color), 1.4, Qt.DashLine)); R(8, 7, 8, 10, 1)
+    elif kind == "compress":
+        L(12, 2, 12, 9); L(9, 6, 12, 9); L(15, 6, 12, 9); L(12, 22, 12, 15); L(9, 18, 12, 15); L(15, 18, 12, 15); L(4, 12, 20, 12)
+    elif kind == "lock":
+        R(5, 10, 14, 11); p.drawArc(QRectF(8, 4, 8, 12), 0, 180 * 16)
+    elif kind == "unlock":
+        R(5, 10, 14, 11); p.drawArc(QRectF(8, 4, 8, 12), 40 * 16, 140 * 16)
+    elif kind == "info":
+        p.drawEllipse(QRectF(3, 3, 18, 18)); L(12, 11, 12, 17); p.drawPoint(QPointF(12, 7.5))
+    elif kind == "compare":
+        R(3, 4, 8, 16); R(13, 4, 8, 16); L(5, 9, 9, 9); L(15, 9, 19, 9); L(5, 13, 9, 13)
+    elif kind == "images":
+        R(3, 6, 14, 12); R(7, 3, 14, 12)
+    elif kind == "repair":
+        L(5, 19, 14, 10); p.drawEllipse(QRectF(13, 3, 8, 8))
+    elif kind == "star":
+        pts = [(12 + (9 if i % 2 == 0 else 4) * math.sin(math.radians(i * 36)),
+                12.5 - (9 if i % 2 == 0 else 4) * math.cos(math.radians(i * 36))) for i in range(10)]
+        poly(*pts)
+    elif kind == "back":
+        L(15, 5, 8, 12); L(8, 12, 15, 19)
+    elif kind == "settings":
+        p.drawEllipse(QRectF(8.5, 8.5, 7, 7))
+        for a in range(0, 360, 45):
+            r = math.radians(a)
+            L(12 + 6 * math.cos(r), 12 + 6 * math.sin(r), 12 + 9 * math.cos(r), 12 + 9 * math.sin(r))
+    elif kind == "search":
+        p.drawEllipse(QRectF(4, 4, 11, 11)); L(13.5, 13.5, 20, 20)
+    elif kind == "close":
+        L(6, 6, 18, 18); L(18, 6, 6, 18)
+    p.end()
+    pm.setDevicePixelRatio(2)
+    return QIcon(pm)
+
+
+SHELL_QSS = f"""
+QFrame#dgRail {{ background: white; border-right: 1px solid {LINE}; }}
+QFrame#dgRail QToolButton {{ border: none; border-radius: 10px; padding: 6px; background: transparent; }}
+QFrame#dgRail QToolButton:hover {{ background: #F1EAF8; }}
+QFrame#dgRail QToolButton:checked {{ background: #FCE4EA; }}
+QFrame#dgRail QToolButton:disabled {{ background: transparent; }}
+QWidget#dgStart {{ background: #F7F4FB; }}
+QWidget#dgStart QLabel {{ background: transparent; }}
+QWidget#dgStart[dropping="true"] {{ background: #FCEFF3; border: 2px dashed {PINK}; border-radius: 16px; }}
+QLabel#dgSec {{ color: {SOFT}; font-size: 11px; font-weight: 700; letter-spacing: 1px; }}
+QPushButton#dgRecent {{ border: none; background: transparent; color: {INK}; font-size: 13px; padding: 3px 8px;
+                        font-weight: 500; text-align: center; }}
+QPushButton#dgRecent:hover {{ color: #C2395C; text-decoration: underline; }}
+QPushButton#dgPrimary {{ border: none; border-radius: 10px; padding: 9px 18px; color: {INK}; font-weight: 600;
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {PINK}, stop:1 {AMBER}); }}
+QPushButton#dgPrimary:hover {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #FF5F82, stop:1 #FFA444); }}
+QPushButton#dgPrimary:disabled {{ background: #E9E3F0; color: #A79CB8; }}
+QPushButton#dgPlain {{ background: white; border: 1px solid #D9D0E6; border-radius: 10px; padding: 9px 18px;
+                       color: {INK}; font-weight: 600; }}
+QPushButton#dgPlain:hover {{ background: #F7F2FB; }}
+"""
+
+
+class Rail(QWidget):
+    """the left icon bar.  items: list of (key, icon kind, tooltip, callback) - None for a divider;
+    `bottom` the same for the icons at the bottom (settings).  Keys can be made checkable."""
+
+    def __init__(self, items, bottom=(), width=58):
+        from PySide6.QtWidgets import QFrame, QToolButton
+        super().__init__()
+        self.setObjectName("dgRailHolder")
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        frame = QFrame()
+        frame.setObjectName("dgRail")
+        frame.setFixedWidth(width)
+        frame.setStyleSheet(SHELL_QSS)
+        lay.addWidget(frame)
+        v = QVBoxLayout(frame)
+        v.setContentsMargins(8, 10, 8, 10)
+        v.setSpacing(6)
+        self.buttons = {}
+
+        def add(item, color=INK):
+            if item is None:
+                s = QFrame()
+                s.setFixedHeight(1)
+                s.setStyleSheet(f"background:{LINE};")
+                v.addWidget(s)
+                return
+            key, kind, tip, fn = item
+            b = QToolButton()
+            b.setIcon(line_icon(kind, 22, color))
+            b.setIconSize(QSize(22, 22))
+            b.setFixedSize(42, 42)
+            b.setToolTip(tip)
+            b.setCursor(Qt.PointingHandCursor)
+            if fn:
+                b.clicked.connect(fn)
+            self.buttons[key] = b
+            v.addWidget(b, 0, Qt.AlignHCenter)
+
+        for it in items:
+            add(it)
+        v.addStretch(1)
+        for it in bottom:
+            add(it, SOFT)
+
+    def button(self, key):
+        return self.buttons[key]
+
+    def set_enabled(self, keys, flag):
+        for k in keys:
+            if k in self.buttons:
+                self.buttons[k].setEnabled(flag)
+
+
+class StartScreen(QWidget):
+    """the plain start screen: Digonto logo, a line of text, the main buttons, 'or drop files here', recent files.
+    buttons: list of (label, icon kind, callback, primary?).  recent(): list of paths.  The window does the
+    dropping; call set_dropping(True/False) from its drag events to light the screen up."""
+
+    def __init__(self, tagline, buttons, drop_text, recent=None, open_path=None, max_recent=6):
+        super().__init__()
+        self.setObjectName("dgStart")
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setStyleSheet(SHELL_QSS)
+        self._recent, self._open = recent, open_path
+        self.max_recent = max_recent
+        v = QVBoxLayout(self)
+        v.setContentsMargins(28, 24, 28, 24)
+        v.addStretch(2)
+        ban = QLabel()
+        pm = _banner_pixmap(75)
+        if pm is not None:
+            ban.setPixmap(pm)
+        ban.setAlignment(Qt.AlignCenter)
+        v.addWidget(ban)
+        t = QLabel(tagline)
+        t.setAlignment(Qt.AlignCenter)
+        t.setStyleSheet(f"color:{SOFT}; font-size:14px; margin-top:6px;")
+        v.addWidget(t)
+        row = QHBoxLayout()
+        row.addStretch(1)
+        self.buttons = []
+        for label, kind, fn, prim in buttons:
+            b = QPushButton("  " + label)
+            b.setObjectName("dgPrimary" if prim else "dgPlain")
+            b.setIcon(line_icon(kind, 18))
+            b.setIconSize(QSize(18, 18))
+            b.setCursor(Qt.PointingHandCursor)
+            b.clicked.connect(fn)
+            row.addWidget(b)
+            self.buttons.append(b)
+        row.addStretch(1)
+        v.addSpacing(14)
+        v.addLayout(row)
+        drop = QLabel(drop_text)
+        drop.setAlignment(Qt.AlignCenter)
+        drop.setStyleSheet(f"color:{SOFT}; font-size:12.5px; margin-top:10px;")
+        v.addWidget(drop)
+        v.addSpacing(26)
+        self.rec_title = QLabel("RECENT")
+        self.rec_title.setObjectName("dgSec")
+        self.rec_title.setAlignment(Qt.AlignCenter)
+        v.addWidget(self.rec_title)
+        self.rec_box = QVBoxLayout()
+        self.rec_box.setSpacing(0)
+        v.addLayout(self.rec_box)
+        v.addStretch(3)
+        self.refresh()
+
+    def refresh(self):
+        while self.rec_box.count():
+            w = self.rec_box.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        items = [p for p in (self._recent() if self._recent else []) if os.path.exists(p)][:self.max_recent]
+        self.rec_title.setVisible(bool(items))
+        for pth in items:
+            b = QPushButton(os.path.basename(pth))
+            b.setObjectName("dgRecent")
+            b.setToolTip(pth)
+            b.setCursor(Qt.PointingHandCursor)
+            b.clicked.connect(lambda _=False, q=pth: self._open and self._open(q))
+            self.rec_box.addWidget(b, 0, Qt.AlignHCenter)
+
+    def set_dropping(self, flag):
+        self.setProperty("dropping", "true" if flag else "false")
+        self.style().unpolish(self)
+        self.style().polish(self)
+
+
+def recent_paths(slug, limit=12):
+    """the files this program worked on last (from the list Digonto Studio shows), newest first"""
+    try:
+        with open(os.path.join(base_dir(), "recent.json"), encoding="utf-8") as f:
+            items = [r for r in json.load(f) if isinstance(r, dict) and r.get("app") == slug]
+    except (OSError, ValueError):
+        return []
+    return [r["path"] for r in items if os.path.exists(r.get("path", ""))][:limit]
