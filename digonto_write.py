@@ -80,14 +80,28 @@ class WriteWindow(QMainWindow):
         wl.addWidget(self.tb2)
         self.build_toolbars()
         wl.addWidget(self.view, 1)
-        self.start = office.StartScreen(SLUG, "Digonto Write", "Letters, reports and documents. DOCX, ODT, HTML, Markdown and PDF.", [
-            ("+", "Blank document", "Start writing on an empty page.", self.start_new),
-            ("\u2197", "Open ...", "Open a file from this computer, a recent file or a folder shortcut.", self.file_open)])
-        self.start.open_recent.connect(self.open_path)
+        self.start = ui.StartScreen(
+            "Letters, reports and documents - DOCX, ODT, HTML, Markdown and PDF",
+            [("Blank document", "new", self.start_new, True), ("Open …", "open", self.file_open, False)],
+            "or drop a document here", lambda: [r["path"] for r in office.recent_files(SLUG)], self.open_path)
         self.stack = QStackedWidget()
         self.stack.addWidget(self.start)
         self.stack.addWidget(self.work)
-        cl.addWidget(self.stack, 1)
+        self.rail = ui.Rail(
+            [("new", "new", "New document (Ctrl+N)", self.start_new),
+             ("open", "open", "Open (Ctrl+O)", self.file_open),
+             ("save", "save", "Save (Ctrl+S)", self.file_save),
+             ("export", "export", "Save as / export", self.rail_export),
+             ("print", "print", "Print (Ctrl+P)", self.print_doc),
+             None,
+             ("find", "search", "Find and replace (Ctrl+F)", lambda: self.show_find(False)),
+             ("nav", "pages", "Navigation pane - headings of the document (Ctrl+F10)", self.a_nav.trigger)],
+            [("settings", "settings", "Settings and help", self.rail_settings)])
+        body = QHBoxLayout()
+        body.setSpacing(0)
+        body.addWidget(self.rail)
+        body.addWidget(self.stack, 1)
+        cl.addLayout(body, 1)
         self.setCentralWidget(central)
         self.build_status()
         self.build_nav()
@@ -102,13 +116,35 @@ class WriteWindow(QMainWindow):
             QTimer.singleShot(0, lambda: self.open_path(path))
 
     # ------------------------------------------------------------------ start screen
+    def rail_export(self):
+        m = QMenu(self)
+        m.addAction("Save as …", self.file_save_as)
+        m.addAction("Export PDF …", self.export_pdf)
+        b = self.rail.button("export")
+        m.exec(b.mapToGlobal(b.rect().topRight()))
+
+    def rail_settings(self):
+        m = QMenu(self)
+        m.addAction("Page setup …", self.a_setup.trigger)
+        m.addAction("Spelling", self.a_spell.trigger)
+        m.addSeparator()
+        m.addAction("Keyboard shortcuts", lambda: ui.show_all_shortcuts(self, APP_NAME))
+        m.addAction("About Digonto Write", self.about)
+        b = self.rail.button("settings")
+        m.exec(b.mapToGlobal(b.rect().topRight()))
+
+    def _rail_state(self, editing):
+        self.rail.set_enabled(["save", "export", "print", "find", "nav"], editing)
+
     def show_start(self):
         self.start.refresh()
+        self._rail_state(False)
         self.stack.setCurrentWidget(self.start)
         self.statusBar().setVisible(False)
         self.setWindowTitle(APP_NAME)
 
     def show_editor(self):
+        self._rail_state(True)
         self.stack.setCurrentWidget(self.work)
         self.statusBar().setVisible(True)
         self.update_title()
@@ -291,10 +327,7 @@ class WriteWindow(QMainWindow):
 
     def build_toolbars(self):
         t1, t2 = self.tb1, self.tb2
-        for a in (self.a_new, self.a_open, self.a_save, self.a_pdf, self.a_print):
-            t1.addAction(a)
-        t1.addSeparator()
-        for a in (self.a_undo, self.a_redo, self.a_find):
+        for a in (self.a_undo, self.a_redo):
             t1.addAction(a)
         t1.addSeparator()
         self.style_box = QComboBox()
@@ -1067,6 +1100,29 @@ class WriteWindow(QMainWindow):
         self.spell_timer.start(300)
         ui.add_recent(SLUG, path)
         self.statusBar().showMessage("Opened " + os.path.basename(path), 4000)
+        fams = self.fonts_used(doc)
+        if any(not ui.font_installed(x) for x in fams):
+            QTimer.singleShot(150, lambda: ui.note_missing_fonts(self, fams))
+
+    @staticmethod
+    def fonts_used(doc):
+        """every font family the document's text asks for"""
+        fams = set()
+        b = doc.begin()
+        while b.isValid():
+            it = b.begin()
+            while not it.atEnd():
+                fr = it.fragment()
+                if fr.isValid():
+                    cf = fr.charFormat()
+                    fl = cf.fontFamilies() if hasattr(cf, "fontFamilies") else None
+                    if fl:
+                        fams.add(str(fl[0]))
+                    elif cf.fontFamily():
+                        fams.add(cf.fontFamily())
+                it += 1
+            b = b.next()
+        return fams
 
     def file_save(self):
         if not self.path or os.path.splitext(self.path)[1].lower() not in (".docx", ".ddoc", ".html", ".md", ".txt", ".odt"):

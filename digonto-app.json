@@ -1,7 +1,7 @@
 {
   "slug": "digonto-write",
   "name": "Digonto Write",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "comment": "Word processor: DOCX, ODT, HTML, Markdown, PDF",
   "entry": "digonto_write.py",
   "files": [
