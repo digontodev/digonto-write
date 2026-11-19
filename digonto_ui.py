@@ -1611,3 +1611,35 @@ def recent_paths(slug, limit=12):
     except (OSError, ValueError):
         return []
     return [r["path"] for r in items if os.path.exists(r.get("path", ""))][:limit]
+
+
+def open_external(target):
+    """open a folder, a file or a web address with the system's own program. Inside the built Digonto
+    programs on Linux the library paths of the bundle must not reach the file manager (it would load our
+    libraries and quietly fail), so it gets the environment the person started the program with."""
+    import subprocess
+    target = str(target)
+    is_url = "://" in target and not target.startswith("file://")
+    if sys.platform == "win32":
+        os.startfile(target)                                       # noqa: S606
+        return
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", target])
+        return
+    env = dict(os.environ)
+    for var in ("LD_LIBRARY_PATH", "QT_PLUGIN_PATH", "QT_QPA_PLATFORM_PLUGIN_PATH", "GDK_PIXBUF_MODULE_FILE",
+                "GIO_MODULE_DIR", "GTK_PATH", "XDG_DATA_DIRS", "SSL_CERT_FILE", "PYTHONPATH", "PYTHONHOME"):
+        orig = env.pop(var + "_ORIG", None)                        # PyInstaller keeps the original value here
+        if orig is not None:
+            env[var] = orig
+        elif var in ("LD_LIBRARY_PATH", "QT_PLUGIN_PATH", "QT_QPA_PLATFORM_PLUGIN_PATH", "PYTHONPATH", "PYTHONHOME"):
+            env.pop(var, None)
+    if not is_url and not os.path.exists(target.replace("file://", "")):
+        return
+    try:
+        subprocess.Popen(["xdg-open", target], env=env, start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        QDesktopServices.openUrl(QUrl(target) if is_url else QUrl.fromLocalFile(target))
