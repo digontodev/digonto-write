@@ -1406,11 +1406,41 @@ def line_icon(kind, size=22, color=INK):
         poly(*pts)
     elif kind == "back":
         L(15, 5, 8, 12); L(8, 12, 15, 19)
-    elif kind == "settings":
-        p.drawEllipse(QRectF(8.5, 8.5, 7, 7))
-        for a in range(0, 360, 45):
-            r = math.radians(a)
-            L(12 + 6 * math.cos(r), 12 + 6 * math.sin(r), 12 + 9 * math.cos(r), 12 + 9 * math.sin(r))
+    elif kind == "settings":                       # a gear: 8 teeth around a ring, a hole in the middle
+        path = QPainterPath()
+        teeth, r_out, r_in = 8, 10.0, 7.6
+        pts = []
+        for i in range(teeth):
+            a0 = (i / teeth) * 2 * math.pi
+            w = math.pi / teeth
+            for ang, rad in ((a0 - w * 0.45, r_in), (a0 - w * 0.28, r_out), (a0 + w * 0.28, r_out), (a0 + w * 0.45, r_in)):
+                pts.append((12 + rad * math.cos(ang), 12 + rad * math.sin(ang)))
+        path.moveTo(*pts[0])
+        for q in pts[1:]:
+            path.lineTo(*q)
+        path.closeSubpath()
+        from PySide6.QtGui import QLinearGradient
+        g = QLinearGradient(QPointF(2, 2), QPointF(22, 22))     # the Digonto colours: pink to amber
+        g.setColorAt(0, QColor(PINK))
+        g.setColorAt(1, QColor(AMBER))
+        p.setPen(QPen(g, 2.0, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.drawPath(path)
+        p.drawEllipse(QRectF(8.8, 8.8, 6.4, 6.4))
+    elif kind == "record":
+        p.drawEllipse(QRectF(3, 3, 18, 18)); p.setBrush(QColor("#E0457B")); p.setPen(Qt.NoPen); p.drawEllipse(QRectF(7.5, 7.5, 9, 9))
+    elif kind == "play":
+        poly((8, 5), (19, 12), (8, 19))
+    elif kind == "playlist":
+        L(4, 6, 14, 6); L(4, 11, 14, 11); L(4, 16, 10, 16); poly((15, 13), (21, 16.5), (15, 20))
+    elif kind == "terminal":
+        R(3, 4, 18, 16); L(7, 9, 10, 12); L(10, 12, 7, 15); L(12, 15, 16, 15)
+    elif kind == "server":
+        R(4, 4, 16, 7); R(4, 13, 16, 7); p.drawPoint(QPointF(7.5, 7.5)); p.drawPoint(QPointF(7.5, 16.5))
+    elif kind == "qr":
+        R(3, 3, 7, 7, 1); R(14, 3, 7, 7, 1); R(3, 14, 7, 7, 1); L(14, 14, 16, 14); L(19, 14, 21, 14); L(14, 17, 14, 21)
+        L(17, 17, 21, 17); L(17, 21, 21, 21)
+    elif kind == "wand":
+        L(4, 20, 15, 9); L(17, 3, 17, 7); L(15, 5, 19, 5); L(20, 9, 20, 11); L(19, 10, 21, 10)
     elif kind == "search":
         p.drawEllipse(QRectF(4, 4, 11, 11)); L(13.5, 13.5, 20, 20)
     elif kind == "close":
@@ -1486,7 +1516,7 @@ class Rail(QWidget):
             add(it)
         v.addStretch(1)
         for it in bottom:
-            add(it, SOFT)
+            add(it, INK)
 
     def button(self, key):
         return self.buttons[key]
